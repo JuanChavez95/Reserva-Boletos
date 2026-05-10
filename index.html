@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="Juan Carlos Chavez Machaca">
+  <title>Reserva de Boletos</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Librería para generar QR -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+  <style>
+    body { background: #121212; color: #f0f0f0; font-family: sans-serif; }
+
+    .card { background: #1e1e1e; border: 1px solid #333; }
+
+    .form-control, .form-select {
+      background: #2a2a2a !important;
+      border: 1px solid #444 !important;
+      color: #f0f0f0 !important;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: #7c3aed !important;
+      box-shadow: 0 0 0 2px rgba(124,58,237,0.25) !important;
+    }
+    .form-control::placeholder { color: #666 !important; }
+    .form-label { color: #aaa; font-size: .85rem; }
+
+    .btn-morado { background: #7c3aed; border: none; color: #fff; }
+    .btn-morado:hover { background: #6d28d9; color: #fff; }
+    .btn-morado:disabled { opacity: .6; }
+
+    /* Asientos */
+    .seat-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .seat {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      border: 1.5px solid #444;
+      background: #2a2a2a;
+      color: #f0f0f0;
+      font-size: .85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+    }
+    .seat:hover:not(.occupied):not(.selected) { border-color: #7c3aed; background: #3b1f6e; }
+    .seat.selected { background: #7c3aed; border-color: #7c3aed; color: #fff; font-weight: 600; }
+    .seat.occupied { background: #1a1a1a; border-color: #222; color: #333; cursor: not-allowed; text-decoration: line-through; }
+
+    /* Upload */
+    .upload-area {
+      border: 2px dashed #444;
+      border-radius: 8px;
+      background: #2a2a2a;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: border-color .2s;
+    }
+    .upload-area:hover { border-color: #7c3aed; }
+    .upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+    #preview-img { max-height: 130px; border-radius: 8px; border: 1px solid #444; display: none; margin-top: .5rem; }
+
+    /* QR */
+    #qrcode { background: #fff; display: inline-block; padding: 8px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div style="background:#1a0a2e; border-bottom:2px solid #7c3aed; padding:.75rem 0;">
+    <div class="container">
+      <h5 class="mb-0" style="color:#c4b5fd;">🎵 Reserva de Boletos — Concierto Musical</h5>
+    </div>
+  </div>
+
+  <div class="container py-4">
+    <div class="row g-4">
+
+      <!-- IZQUIERDA: Datos + Asientos -->
+      <div class="col-12 col-md-7">
+
+        <!-- Datos personales -->
+        <div class="card p-3 mb-4">
+          <h6 style="color:#c4b5fd;" class="mb-3"><i class="bi bi-person me-1"></i>Datos personales</h6>
+          <form id="reservaForm" novalidate>
+
+            <div class="mb-3">
+              <label class="form-label">Nombre completo</label>
+              <input type="text" class="form-control" id="nombre" placeholder="Ej: Juan Perez" required minlength="3">
+              <div class="invalid-feedback">Ingresa tu nombre.</div>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label">Cedula de identidad</label>
+                <input type="text" class="form-control" id="ci" placeholder="12345678" required pattern="[0-9]{7,10}">
+                <div class="invalid-feedback">7 a 10 digitos.</div>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Telefono / WhatsApp</label>
+                <input type="tel" class="form-control" id="telefono" placeholder="77123456" required pattern="[0-9]{7,11}">
+                <div class="invalid-feedback">Numero invalido.</div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Correo electronico</label>
+              <input type="email" class="form-control" id="correo" placeholder="ejemplo@gmail.com" required>
+              <div class="invalid-feedback">Correo invalido.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Seccion</label>
+              <select class="form-select" id="seccion" required>
+                <option value="" disabled selected>Selecciona una seccion</option>
+                <option value="VIP">VIP</option>
+                <option value="General A">General A</option>
+                <option value="General B">General B</option>
+                <option value="Balcon">Balcon</option>
+              </select>
+              <div class="invalid-feedback">Selecciona una seccion.</div>
+            </div>
+
+            <div class="mb-1">
+              <label class="form-label">Observaciones (opcional)</label>
+              <textarea class="form-control" id="descripcion" rows="2" maxlength="400" placeholder="Accesibilidad, alergias, etc."></textarea>
+            </div>
+
+          </form>
+        </div>
+
+        <!-- Asientos -->
+        <div class="card p-3">
+          <h6 style="color:#c4b5fd;" class="mb-1"><i class="bi bi-grid me-1"></i>Selecciona tu asiento</h6>
+          <p style="font-size:.78rem; color:#666;" class="mb-3">Haz clic en un asiento disponible</p>
+
+          <div class="text-center mb-3">
+            <span style="font-size:.7rem; letter-spacing:2px; color:#7c3aed; border:1px solid #7c3aed; padding:.2rem 1.2rem; border-radius:4px;">ESCENARIO</span>
+          </div>
+
+          <div class="seat-grid mb-3" id="seatGrid"></div>
+
+          <!-- Leyenda -->
+          <div class="d-flex gap-3 mb-2" style="font-size:.75rem; color:#888;">
+            <span><span style="display:inline-block;width:11px;height:11px;background:#2a2a2a;border:1.5px solid #444;border-radius:3px;vertical-align:middle;"></span> Libre</span>
+            <span><span style="display:inline-block;width:11px;height:11px;background:#7c3aed;border-radius:3px;vertical-align:middle;"></span> Seleccionado</span>
+            <span><span style="display:inline-block;width:11px;height:11px;background:#1a1a1a;border:1.5px solid #222;border-radius:3px;vertical-align:middle;"></span> Ocupado</span>
+          </div>
+
+          <div id="seatAlert" class="alert alert-danger py-2 px-3 mb-2" style="display:none; font-size:.85rem;"></div>
+          <div id="seatInfo" style="display:none; font-size:.85rem; color:#a78bfa;">
+            <i class="bi bi-check-circle me-1"></i>Asiento seleccionado: <strong id="seatLabel"></strong>
+          </div>
+          <div id="seatRequired" style="display:none; font-size:.8rem; color:#f87171;">Debes seleccionar un asiento.</div>
+          <input type="hidden" id="asiento">
+        </div>
+
+      </div>
+
+      <!-- DERECHA: QR + Comprobante + Botón -->
+      <div class="col-12 col-md-5">
+        <div class="card p-3">
+
+          <!-- QR informativo -->
+          <h6 style="color:#c4b5fd;" class="mb-2"><i class="bi bi-qr-code me-1"></i>Datos de pago</h6>
+          <p style="font-size:.8rem; color:#888; margin-bottom:.75rem;">
+            Escanea el QR con tu camara o app de WhatsApp para ver los datos de transferencia.
+          </p>
+
+          <div class="text-center mb-2">
+            <div id="qrcode"></div>
+          </div>
+
+          <div style="background:#2a2a2a; border-radius:8px; padding:.6rem 1rem; font-size:.82rem; margin-bottom:1rem;">
+            <div><span style="color:#888;">Titular:</span> <strong>NOMBRE DE TITULAR 1234</strong></div>
+            <div><span style="color:#888;">Monto:</span> <strong style="color:#a78bfa;">Bs. 50</strong></div>
+            <div><span style="color:#888;">Concepto:</span> Reserva Concierto Musical</div>
+          </div>
+
+          <ol style="font-size:.8rem; color:#888; padding-left:1.1rem; line-height:1.9; margin-bottom:1rem;">
+            <li>Escanea el QR y anota los datos</li>
+            <li>Realiza la transferencia desde tu app bancaria</li>
+            <li>Toma foto o captura del comprobante</li>
+            <li>Subelo abajo y confirma tu reserva</li>
+          </ol>
+
+          <hr style="border-color:#333;">
+
+          <!-- Subir comprobante -->
+          <h6 style="color:#c4b5fd;" class="mb-2"><i class="bi bi-upload me-1"></i>Comprobante de pago</h6>
+
+          <div class="upload-area" id="uploadArea">
+            <input type="file" id="comprobante" accept="image/*,application/pdf" onchange="handleFile(this)">
+            <i class="bi bi-cloud-arrow-up" style="font-size:1.8rem; color:#7c3aed;"></i>
+            <p class="mt-1">Haz clic o arrastra tu archivo</p>
+            <p style="font-size:.72rem; color:#666;">JPG, PNG, PDF — max. 5MB</p>
+          </div>
+
+          <img id="preview-img" src="" alt="Vista previa">
+          <div id="filenameLabel" style="font-size:.78rem; color:#6ee7b7; margin-top:.4rem; display:none;"></div>
+          <div id="fileError" style="font-size:.78rem; color:#f87171; display:none;">Sube el comprobante.</div>
+
+          <hr style="border-color:#333;">
+
+          <button class="btn btn-morado w-100" id="btnEnviar" onclick="enviarReserva()">
+            <span id="btnText"><i class="bi bi-send me-1"></i>Confirmar Reserva</span>
+            <span id="btnLoading" style="display:none;">
+              <span class="spinner-border spinner-border-sm me-1"></span>Enviando...
+            </span>
+          </button>
+
+          <p class="text-center mt-2" style="font-size:.72rem; color:#555;">
+            Recibiras confirmacion por correo y WhatsApp.
+          </p>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL OK -->
+  <div class="modal fade" id="modalOk" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="background:#1e1e1e; border:1px solid #333; color:#f0f0f0;">
+        <div class="modal-body text-center p-4">
+          <div style="font-size:2.5rem;">✅</div>
+          <h5 class="mt-2 mb-1">Reserva enviada</h5>
+          <p style="font-size:.85rem; color:#888;">Recibiras confirmacion por correo y WhatsApp.</p>
+          <div id="modalDetalles" class="text-start mb-3" style="font-size:.85rem;"></div>
+          <button class="btn btn-morado w-100" data-bs-dismiss="modal" onclick="resetForm()">Nueva reserva</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHcsvn0t2Ttc9k_HA8aqhfmnOOztXrgTy0lvmf9bk7bLQw6F4ADvDfLc2Ki4ttnrI/exec';
+    const TOTAL_ASIENTOS  = 20;
+    let asientoSeleccionado = null;
+    let ocupados = [];
+
+    // ── Generar QR informativo ──
+    new QRCode(document.getElementById('qrcode'), {
+      text: 'Pago a: NOMBRE DE TITULAR 1234\nMonto: Bs. 50\nConcepto: Reserva Concierto Musical',
+      width: 160,
+      height: 160,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+    });
+
+    // ── Asientos ──
+    function renderAsientos(lista) {
+      ocupados = lista;
+      const grid = document.getElementById('seatGrid');
+      grid.innerHTML = '';
+      for (let i = 1; i <= TOTAL_ASIENTOS; i++) {
+        const occ = ocupados.includes(i);
+        const div = document.createElement('div');
+        div.className = 'seat' + (occ ? ' occupied' : '');
+        div.textContent = i;
+        div.dataset.num = i;
+        if (!occ) div.onclick = () => elegirAsiento(i);
+        grid.appendChild(div);
+      }
+    }
+
+    function elegirAsiento(n) {
+      if (ocupados.includes(n)) { mostrarAlerta('El asiento #' + n + ' ya esta reservado.'); return; }
+      ocultarAlerta();
+      asientoSeleccionado = n;
+      document.getElementById('asiento').value = n;
+      document.querySelectorAll('.seat').forEach(s => s.classList.remove('selected'));
+      document.querySelector('.seat[data-num="' + n + '"]').classList.add('selected');
+      document.getElementById('seatInfo').style.display = 'block';
+      document.getElementById('seatLabel').textContent = '#' + n;
+      document.getElementById('seatRequired').style.display = 'none';
+    }
+
+    function mostrarAlerta(msg) {
+      const el = document.getElementById('seatAlert');
+      el.textContent = msg; el.style.display = 'block';
+    }
+    function ocultarAlerta() { document.getElementById('seatAlert').style.display = 'none'; }
+
+    // ── Archivo ──
+    function handleFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        document.getElementById('fileError').textContent = 'El archivo supera los 5MB.';
+        document.getElementById('fileError').style.display = 'block';
+        input.value = ''; return;
+      }
+      document.getElementById('fileError').style.display = 'none';
+      document.getElementById('filenameLabel').textContent = '✔ ' + file.name;
+      document.getElementById('filenameLabel').style.display = 'block';
+      if (file.type.startsWith('image/')) {
+        const r = new FileReader();
+        r.onload = e => { const img = document.getElementById('preview-img'); img.src = e.target.result; img.style.display = 'block'; };
+        r.readAsDataURL(file);
+      }
+    }
+
+    const ua = document.getElementById('uploadArea');
+    ua.addEventListener('dragover',  e => { e.preventDefault(); ua.style.borderColor = '#7c3aed'; });
+    ua.addEventListener('dragleave', () => { ua.style.borderColor = '#444'; });
+    ua.addEventListener('drop', e => {
+      e.preventDefault(); ua.style.borderColor = '#444';
+      const fi = document.getElementById('comprobante');
+      fi.files = e.dataTransfer.files; handleFile(fi);
+    });
+
+    // ── Enviar ──
+    async function enviarReserva() {
+      const form = document.getElementById('reservaForm');
+      let valido = true;
+
+      if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        form.querySelector(':invalid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        valido = false;
+      }
+      if (!asientoSeleccionado) {
+        document.getElementById('seatRequired').style.display = 'block';
+        document.getElementById('seatGrid').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        valido = false;
+      }
+      const fileInput = document.getElementById('comprobante');
+      if (!fileInput.files.length) {
+        document.getElementById('fileError').textContent = 'Sube el comprobante.';
+        document.getElementById('fileError').style.display = 'block';
+        valido = false;
+      }
+      if (!valido) return;
+
+      setBtnLoading(true);
+
+      let comprobanteBase64 = '';
+      let comprobanteType   = '';
+      try {
+        const file = fileInput.files[0];
+        comprobanteBase64 = await toBase64(file);
+        comprobanteType   = file.type;
+      } catch(e) { console.warn(e); }
+
+      const payload = {
+        nombre:            document.getElementById('nombre').value.trim(),
+        ci:                document.getElementById('ci').value.trim(),
+        telefono:          document.getElementById('telefono').value.trim(),
+        correo:            document.getElementById('correo').value.trim(),
+        asiento:           asientoSeleccionado,
+        seccion:           document.getElementById('seccion').value,
+        descripcion:       document.getElementById('descripcion').value.trim(),
+        comprobanteBase64: comprobanteBase64,
+        comprobanteType:   comprobanteType,
+        timestamp:         new Date().toISOString(),
+      };
+
+      try {
+        const resp = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+
+        if (data.status === 'ocupado') {
+          mostrarAlerta('El asiento #' + asientoSeleccionado + ' fue tomado. Elige otro.');
+          renderAsientos(data.ocupados || ocupados);
+          asientoSeleccionado = null;
+          document.getElementById('asiento').value = '';
+          document.getElementById('seatInfo').style.display = 'none';
+          setBtnLoading(false);
+          document.getElementById('seatGrid').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+
+        if (data.status === 'ok') {
+          mostrarModal(payload);
+        } else {
+          alert('Error: ' + (data.mensaje || 'Intentalo de nuevo.'));
+          setBtnLoading(false);
+        }
+
+      } catch (err) {
+        console.warn('Error:', err);
+        mostrarModal(payload); // demo sin backend
+      }
+    }
+
+    function toBase64(file) {
+      return new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload  = () => res(r.result.split(',')[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+    }
+
+    function setBtnLoading(on) {
+      document.getElementById('btnEnviar').disabled       = on;
+      document.getElementById('btnText').style.display    = on ? 'none'   : 'inline';
+      document.getElementById('btnLoading').style.display = on ? 'inline' : 'none';
+    }
+
+    function mostrarModal(p) {
+      const campos = [
+        ['Nombre', p.nombre], ['CI', p.ci], ['Correo', p.correo],
+        ['Telefono', p.telefono], ['Asiento', '#' + p.asiento], ['Seccion', p.seccion],
+      ];
+      document.getElementById('modalDetalles').innerHTML = campos.map(c =>
+        `<div style="padding:.3rem 0; border-bottom:1px solid #2a2a2a;">
+           <span style="color:#888;font-size:.72rem;">${c[0]}</span><br><strong>${c[1]}</strong>
+         </div>`
+      ).join('');
+      setBtnLoading(false);
+      new bootstrap.Modal(document.getElementById('modalOk')).show();
+    }
+
+    function resetForm() {
+      document.getElementById('reservaForm').reset();
+      document.getElementById('reservaForm').classList.remove('was-validated');
+      document.getElementById('comprobante').value = '';
+      document.getElementById('preview-img').style.display = 'none';
+      document.getElementById('filenameLabel').style.display = 'none';
+      document.getElementById('seatInfo').style.display = 'none';
+      ocultarAlerta();
+      asientoSeleccionado = null;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ── Cargar asientos desde backend ──
+    async function cargarAsientos() {
+      try {
+        const r = await fetch(APPS_SCRIPT_URL + '?action=asientos');
+        const d = await r.json();
+        renderAsientos(d.ocupados || []);
+      } catch(e) {
+        renderAsientos([]);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', cargarAsientos);
+  </script>
+</body>
+</html>

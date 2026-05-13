@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="author" content="Juan Carlos Chavez Machaca">
-  <title>Reserva de Boletos</title>
+  <title>Reserva de Boletos JCCHM</title>
+  <meta name="description" content="Página web de reserva de boletos conectada a Google Sheets y Google App Script">
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
@@ -12,7 +13,7 @@
 
   <style>
     body { background: #121212; color: #f0f0f0; font-family: sans-serif; }
-    .card { background: #1e1e1e; border: 1px solid #333; }
+    .card { background: #1e1e1e; border: 2px solid #333; }
     .form-control, .form-select {
       background: #2a2a2a !important;
       border: 1px solid #444 !important;
@@ -27,6 +28,7 @@
     .btn-morado { background: #7c3aed; border: none; color: #fff; }
     .btn-morado:hover { background: #6d28d9; color: #fff; }
     .btn-morado:disabled { opacity: .6; }
+    strong { color: white !important; }
 
     .seat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
     .seat {
@@ -54,7 +56,7 @@
 
   <div style="background:#1a0a2e; border-bottom:2px solid #7c3aed; padding:.75rem 0;">
     <div class="container">
-      <h5 class="mb-0" style="color:#c4b5fd;">🎵 Reserva de Boletos — Concierto Musical</h5>
+      <h5 class="mb-0" style="color:#c4b5fd;">Reserva de Boletos — Concierto de JCCHM</h5>
     </div>
   </div>
 
@@ -67,6 +69,7 @@
         <div class="card p-3 mb-4">
           <h6 style="color:#c4b5fd;" class="mb-3"><i class="bi bi-person me-1"></i>Datos personales</h6>
 
+          <!-- Form ahora sin enctype multipart, se envía via JS -->
           <form id="reservaForm"
                 action="https://script.google.com/macros/s/AKfycbyHcsvn0t2Ttc9k_HA8aqhfmnOOztXrgTy0lvmf9bk7bLQw6F4ADvDfLc2Ki4ttnrI/exec"
                 method="POST"
@@ -115,26 +118,31 @@
               <textarea class="form-control" name="descripcion" rows="2" maxlength="400" placeholder="Accesibilidad, alergias, etc."></textarea>
             </div>
 
-            <!-- Asiento oculto que se llena con JS -->
+            <!-- Campos ocultos -->
             <input type="hidden" name="asiento" id="asiento">
+            <!-- URL del comprobante subido a Cloudinary -->
+            <input type="hidden" name="urlComprobante" id="urlComprobante">
 
-            <!-- Comprobante dentro del form -->
+            <!-- Comprobante -->
             <div class="mb-3">
               <label class="form-label" style="color:#c4b5fd;"><i class="bi bi-upload me-1"></i>Comprobante de pago</label>
               <div class="upload-area" id="uploadArea">
-                <input type="file" name="comprobante" id="comprobante" accept="image/*,application/pdf" onchange="handleFile(this)" required>
+                <input type="file" id="comprobante" accept="image/*,application/pdf" onchange="handleFile(this)" required>
                 <i class="bi bi-cloud-arrow-up" style="font-size:1.8rem; color:#7c3aed;"></i>
                 <p class="mt-1">Haz clic o arrastra tu archivo</p>
                 <p style="font-size:.72rem; color:#666;">JPG, PNG, PDF — max. 5MB</p>
               </div>
               <img id="preview-img" src="" alt="Vista previa">
               <div id="filenameLabel" style="font-size:.78rem; color:#6ee7b7; margin-top:.4rem; display:none;"></div>
+              <div id="uploadStatus" style="font-size:.78rem; color:#a78bfa; margin-top:.4rem; display:none;"></div>
               <div id="fileError" style="font-size:.78rem; color:#f87171; display:none;">Sube el comprobante.</div>
             </div>
 
-            <!-- Botón submit dentro del form -->
-            <button type="button" class="btn btn-morado w-100" onclick="validarYEnviar()">
-              <i class="bi bi-send me-1"></i>Confirmar Reserva
+            <button type="button" class="btn btn-morado w-100" id="btnEnviar" onclick="validarYEnviar()">
+              <span id="btnText"><i class="bi bi-send me-1"></i>Confirmar Reserva</span>
+              <span id="btnLoading" style="display:none;">
+                <span class="spinner-border spinner-border-sm me-1"></span>Enviando...
+              </span>
             </button>
 
           </form>
@@ -142,7 +150,7 @@
 
         <!-- Asientos -->
         <div class="card p-3">
-          <h6 style="color:#c4b5fd;" class="mb-1"><i class="bi bi-grid me-1"></i>Selecciona tu asiento</h6>
+          <h6 style="color:#c4b5fd;" class="mb-1">Selecciona tu asiento</h6>
           <p style="font-size:.78rem; color:#666;" class="mb-3">Haz clic en un asiento disponible</p>
 
           <div class="text-center mb-3">
@@ -180,9 +188,9 @@
           </div>
 
           <div style="background:#2a2a2a; border-radius:8px; padding:.6rem 1rem; font-size:.82rem; margin-bottom:1rem;">
-            <div><span style="color:#888;">Titular:</span> <strong>NOMBRE DE TITULAR 1234</strong></div>
+            <div><span style="color:#888;">Titular:</span> <strong>NOMBRE DE TITULAR 3467</strong></div>
             <div><span style="color:#888;">Monto:</span> <strong style="color:#a78bfa;">Bs. 50</strong></div>
-            <div><span style="color:#888;">Concepto:</span> Reserva Concierto Musical</div>
+            <div><span style="color:#888;">Concepto:</span><strong> Reserva Concierto Musical</strong></div>
           </div>
 
           <ol style="font-size:.8rem; color:#888; padding-left:1.1rem; line-height:1.9;">
@@ -200,8 +208,11 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHcsvn0t2Ttc9k_HA8aqhfmnOOztXrgTy0lvmf9bk7bLQw6F4ADvDfLc2Ki4ttnrI/exec';
-    const TOTAL_ASIENTOS  = 20;
+    const APPS_SCRIPT_URL    = 'https://script.google.com/macros/s/AKfycbyHcsvn0t2Ttc9k_HA8aqhfmnOOztXrgTy0lvmf9bk7bLQw6F4ADvDfLc2Ki4ttnrI/exec';
+    const CLOUDINARY_CLOUD   = 'dpfoul2dc';
+    const CLOUDINARY_PRESET  = 'Unsigned'; // nombre exacto de tu preset
+    const TOTAL_ASIENTOS     = 20;
+
     let asientoSeleccionado = null;
     let ocupados = [];
 
@@ -229,10 +240,7 @@
     }
 
     function elegirAsiento(n) {
-      if (ocupados.includes(n)) {
-        mostrarAlerta('El asiento #' + n + ' ya esta reservado.');
-        return;
-      }
+      if (ocupados.includes(n)) { mostrarAlerta('El asiento #' + n + ' ya esta reservado.'); return; }
       ocultarAlerta();
       asientoSeleccionado = n;
       document.getElementById('asiento').value = n;
@@ -243,13 +251,10 @@
       document.getElementById('seatRequired').style.display = 'none';
     }
 
-    function mostrarAlerta(msg) {
-      const el = document.getElementById('seatAlert');
-      el.textContent = msg; el.style.display = 'block';
-    }
+    function mostrarAlerta(msg) { const el = document.getElementById('seatAlert'); el.textContent = msg; el.style.display = 'block'; }
     function ocultarAlerta() { document.getElementById('seatAlert').style.display = 'none'; }
 
-    // Archivo
+    // Archivo — solo preview, la subida ocurre al enviar
     function handleFile(input) {
       const file = input.files[0];
       if (!file) return;
@@ -259,14 +264,13 @@
         input.value = ''; return;
       }
       document.getElementById('fileError').style.display = 'none';
+      document.getElementById('urlComprobante').value = ''; // limpiar URL anterior
       document.getElementById('filenameLabel').textContent = '✔ ' + file.name;
       document.getElementById('filenameLabel').style.display = 'block';
+      document.getElementById('uploadStatus').style.display = 'none';
       if (file.type.startsWith('image/')) {
         const r = new FileReader();
-        r.onload = e => {
-          const img = document.getElementById('preview-img');
-          img.src = e.target.result; img.style.display = 'block';
-        };
+        r.onload = e => { const img = document.getElementById('preview-img'); img.src = e.target.result; img.style.display = 'block'; };
         r.readAsDataURL(file);
       }
     }
@@ -280,8 +284,24 @@
       fi.files = e.dataTransfer.files; handleFile(fi);
     });
 
+    // Subir a Cloudinary y devolver URL
+    async function subirACloudinary(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+      formData.append('folder', 'comprobantes');
+
+      const resp = await fetch('https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await resp.json();
+      if (data.secure_url) return data.secure_url;
+      throw new Error('Cloudinary error: ' + JSON.stringify(data));
+    }
+
     // Validar y enviar
-    function validarYEnviar() {
+    async function validarYEnviar() {
       const form = document.getElementById('reservaForm');
       let valido = true;
 
@@ -295,25 +315,47 @@
         document.getElementById('seatGrid').scrollIntoView({ behavior: 'smooth', block: 'center' });
         valido = false;
       }
-      if (!document.getElementById('comprobante').files.length) {
+      const fileInput = document.getElementById('comprobante');
+      if (!fileInput.files.length) {
         document.getElementById('fileError').textContent = 'Sube el comprobante.';
         document.getElementById('fileError').style.display = 'block';
         valido = false;
       }
       if (!valido) return;
 
+      setBtnLoading(true);
+
+      // 1. Subir comprobante a Cloudinary
+      try {
+        document.getElementById('uploadStatus').textContent = '⏳ Subiendo comprobante...';
+        document.getElementById('uploadStatus').style.display = 'block';
+        const url = await subirACloudinary(fileInput.files[0]);
+        document.getElementById('urlComprobante').value = url;
+        document.getElementById('uploadStatus').textContent = '✔ Comprobante subido';
+      } catch (err) {
+        document.getElementById('uploadStatus').textContent = '⚠️ Error al subir comprobante, se enviara sin el.';
+        document.getElementById('uploadStatus').style.display = 'block';
+        document.getElementById('urlComprobante').value = 'Error al subir';
+        console.warn(err);
+      }
+
+      // 2. Enviar el form al Apps Script
       form.submit();
     }
 
-    // Cargar asientos ocupados desde backend
+    function setBtnLoading(on) {
+      document.getElementById('btnEnviar').disabled       = on;
+      document.getElementById('btnText').style.display    = on ? 'none'   : 'inline';
+      document.getElementById('btnLoading').style.display = on ? 'inline' : 'none';
+    }
+
+    // Cargar asientos
     async function cargarAsientos() {
       try {
         const r = await fetch(APPS_SCRIPT_URL + '?action=asientos');
         const d = await r.json();
         renderAsientos(d.ocupados || []);
-      } catch(e) {
-        renderAsientos([]);
-      }
+      } catch(e) { renderAsientos([]); }
     }
 
     document.addEventListener('DOMContentLoaded', cargarAsientos);
